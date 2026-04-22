@@ -438,6 +438,17 @@ function ensureValidProviderSelections(state: Partial<SettingsState>): void {
 }
 
 /**
+ * Rename map for built-in model IDs that were corrected in code.
+ * Applied to persisted state on rehydrate so users' localStorage catches up
+ * without manual intervention. Key = old (bad) id, value = new (correct) id.
+ */
+const BUILT_IN_MODEL_RENAMES: Partial<Record<ProviderId, Record<string, string>>> = {
+  openrouter: {
+    'qwen/qwen-3-32b': 'qwen/qwen3-32b',
+  },
+};
+
+/**
  * Ensure providersConfig includes all built-in providers and their latest models.
  * Called on every rehydrate (not just version migrations) so new providers
  * added in code are always picked up without clearing cache.
@@ -455,10 +466,19 @@ function ensureBuiltInProviders(state: Partial<SettingsState>): void {
       const provider = PROVIDERS[providerId];
       const existing = state.providersConfig![providerId];
 
-      const existingModelIds = new Set(existing.models?.map((m) => m.id) || []);
+      // Apply rename migrations for this provider, then dedupe.
+      const renames = BUILT_IN_MODEL_RENAMES[providerId];
+      let models = existing.models || [];
+      if (renames && models.length > 0) {
+        const seen = new Set<string>();
+        models = models
+          .map((m) => (renames[m.id] ? { ...m, id: renames[m.id] } : m))
+          .filter((m) => (seen.has(m.id) ? false : (seen.add(m.id), true)));
+      }
+
+      const existingModelIds = new Set(models.map((m) => m.id));
       const newModels = provider.models.filter((m) => !existingModelIds.has(m.id));
-      const mergedModels =
-        newModels.length > 0 ? [...newModels, ...(existing.models || [])] : existing.models;
+      const mergedModels = newModels.length > 0 ? [...newModels, ...models] : models;
 
       state.providersConfig![providerId] = {
         ...existing,
@@ -472,6 +492,14 @@ function ensureBuiltInProviders(state: Partial<SettingsState>): void {
       };
     }
   });
+
+  // Rewrite the currently-selected model if it matches a rename.
+  if (state.providerId && state.modelId) {
+    const renames = BUILT_IN_MODEL_RENAMES[state.providerId];
+    if (renames && renames[state.modelId]) {
+      state.modelId = renames[state.modelId];
+    }
+  }
 }
 
 /**

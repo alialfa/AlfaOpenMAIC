@@ -259,30 +259,40 @@ export async function POST(req: NextRequest) {
         try {
           startHeartbeat();
 
-          const streamParams = visionImages?.length
-            ? {
-                model: languageModel,
-                system: prompts.system,
-                messages: [
-                  {
-                    role: 'user' as const,
-                    content: buildVisionUserContent(prompts.user, visionImages),
-                  },
-                ],
-                maxOutputTokens: modelInfo?.outputWindow,
-              }
-            : {
-                model: languageModel,
-                system: prompts.system,
-                prompt: prompts.user,
-                maxOutputTokens: modelInfo?.outputWindow,
-              };
-
           let parsedOutlines: SceneOutline[] = [];
           let languageDirective: string | null = null;
           let lastError: string | undefined;
 
           for (let attempt = 1; attempt <= MAX_STREAM_RETRIES + 1; attempt++) {
+            // streamText swallows provider errors by default when no onError is
+            // set — the textStream just ends empty. Capture here so the real
+            // API error surfaces instead of a generic "empty response".
+            let capturedStreamError: Error | undefined;
+            const onError = ({ error }: { error: unknown }) => {
+              capturedStreamError = error instanceof Error ? error : new Error(String(error));
+            };
+
+            const streamParams = visionImages?.length
+              ? {
+                  model: languageModel,
+                  system: prompts.system,
+                  messages: [
+                    {
+                      role: 'user' as const,
+                      content: buildVisionUserContent(prompts.user, visionImages),
+                    },
+                  ],
+                  maxOutputTokens: modelInfo?.outputWindow,
+                  onError,
+                }
+              : {
+                  model: languageModel,
+                  system: prompts.system,
+                  prompt: prompts.user,
+                  maxOutputTokens: modelInfo?.outputWindow,
+                  onError,
+                };
+
             try {
               const result = streamLLM(streamParams, 'scene-outlines-stream');
 
@@ -329,9 +339,11 @@ export async function POST(req: NextRequest) {
               if (parsedOutlines.length > 0) break;
 
               // Empty result — retry if we have attempts left
-              lastError = fullText.trim()
-                ? 'LLM response could not be parsed into outlines'
-                : 'LLM returned empty response';
+              lastError = capturedStreamError
+                ? capturedStreamError.message
+                : fullText.trim()
+                  ? 'LLM response could not be parsed into outlines'
+                  : 'LLM returned empty response';
 
               if (attempt <= MAX_STREAM_RETRIES) {
                 log.warn(

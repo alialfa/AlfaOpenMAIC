@@ -46,7 +46,7 @@ const log = createLogger('AIProviders');
 export type { ProviderId, ProviderConfig, ModelInfo, ModelConfig };
 
 /** Provider IDs whose logos are monochrome-dark and need `dark:invert` in dark mode */
-export const MONO_LOGO_PROVIDERS: ReadonlySet<string> = new Set(['openai', 'ollama']);
+export const MONO_LOGO_PROVIDERS: ReadonlySet<string> = new Set(['openai', 'ollama', 'openrouter']);
 
 /**
  * Provider registry
@@ -1093,6 +1093,38 @@ export const PROVIDERS: Record<ProviderId, ProviderConfig> = {
         contextWindow: 16384,
         outputWindow: 4096,
         capabilities: { streaming: true, tools: false, vision: false },
+      },
+    ],
+  },
+
+  openrouter: {
+    id: 'openrouter',
+    name: 'OpenRouter',
+    type: 'openai',
+    defaultBaseUrl: 'https://openrouter.ai/api/v1',
+    requiresApiKey: true,
+    icon: '/logos/openrouter.svg',
+    models: [
+      {
+        id: 'minimax/minimax-m2.5:free',
+        name: 'MiniMax M2.5 Free',
+        contextWindow: 196608,
+        outputWindow: 8192,
+        capabilities: { streaming: true, tools: true, vision: false },
+      },
+      {
+        id: 'deepseek/deepseek-r1',
+        name: 'DeepSeek R1',
+        contextWindow: 131072,
+        outputWindow: 32768,
+        capabilities: { streaming: true, tools: false, vision: false },
+      },
+      {
+        id: 'qwen/qwen3-32b',
+        name: 'Qwen3 32B',
+        contextWindow: 32768,
+        outputWindow: 8192,
+        capabilities: { streaming: true, tools: true, vision: false },
       },
     ],
   },
