@@ -1105,13 +1105,68 @@ export const PROVIDERS: Record<ProviderId, ProviderConfig> = {
     requiresApiKey: true,
     icon: '/logos/openrouter.svg',
     models: [
+      // Kimi flagship family
       {
-        id: 'minimax/minimax-m2.5:free',
-        name: 'MiniMax M2.5 Free',
-        contextWindow: 196608,
+        id: 'moonshotai/kimi-k2.6',
+        name: 'Kimi K2.6',
+        contextWindow: 262144,
         outputWindow: 8192,
         capabilities: { streaming: true, tools: true, vision: false },
       },
+      {
+        id: 'moonshotai/kimi-k2.5',
+        name: 'Kimi K2.5',
+        contextWindow: 262144,
+        outputWindow: 8192,
+        capabilities: { streaming: true, tools: true, vision: false },
+      },
+      {
+        id: 'moonshotai/kimi-k2-thinking',
+        name: 'Kimi K2 Thinking',
+        contextWindow: 262144,
+        outputWindow: 8192,
+        capabilities: {
+          streaming: true,
+          tools: true,
+          vision: false,
+          thinking: { toggleable: true, budgetAdjustable: false, defaultEnabled: true },
+        },
+      },
+      // Qwen flagship family
+      {
+        id: 'qwen/qwen3.6-plus',
+        name: 'Qwen3.6 Plus',
+        contextWindow: 1000000,
+        outputWindow: 32768,
+        capabilities: { streaming: true, tools: true, vision: false },
+      },
+      {
+        id: 'qwen/qwen3-max',
+        name: 'Qwen3 Max',
+        contextWindow: 262144,
+        outputWindow: 32768,
+        capabilities: { streaming: true, tools: true, vision: false },
+      },
+      {
+        id: 'qwen/qwen3-max-thinking',
+        name: 'Qwen3 Max Thinking',
+        contextWindow: 262144,
+        outputWindow: 32768,
+        capabilities: {
+          streaming: true,
+          tools: true,
+          vision: false,
+          thinking: { toggleable: true, budgetAdjustable: false, defaultEnabled: true },
+        },
+      },
+      {
+        id: 'qwen/qwen3-32b',
+        name: 'Qwen3 32B',
+        contextWindow: 40960,
+        outputWindow: 8192,
+        capabilities: { streaming: true, tools: true, vision: false },
+      },
+      // DeepSeek
       {
         id: 'deepseek/deepseek-r1',
         name: 'DeepSeek R1',
@@ -1119,10 +1174,18 @@ export const PROVIDERS: Record<ProviderId, ProviderConfig> = {
         outputWindow: 32768,
         capabilities: { streaming: true, tools: false, vision: false },
       },
+      // Free-tier picks
       {
-        id: 'qwen/qwen3-32b',
-        name: 'Qwen3 32B',
-        contextWindow: 32768,
+        id: 'qwen/qwen3-coder:free',
+        name: 'Qwen3 Coder 480B (free)',
+        contextWindow: 262000,
+        outputWindow: 8192,
+        capabilities: { streaming: true, tools: true, vision: false },
+      },
+      {
+        id: 'minimax/minimax-m2.5:free',
+        name: 'MiniMax M2.5 (free)',
+        contextWindow: 196608,
         outputWindow: 8192,
         capabilities: { streaming: true, tools: true, vision: false },
       },
