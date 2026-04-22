@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import localFont from 'next/font/local';
+import { cookies } from 'next/headers';
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import './globals.css';
@@ -10,6 +11,8 @@ import { I18nProvider } from '@/lib/hooks/use-i18n';
 import { Toaster } from '@/components/ui/sonner';
 import { ServerProvidersInit } from '@/components/server-providers-init';
 import { AccessCodeGuard } from '@/components/access-code-guard';
+import { defaultLocale, type Locale } from '@/lib/i18n/types';
+import { supportedLocales } from '@/lib/i18n/locales';
 
 const inter = localFont({
   src: '../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2',
@@ -23,19 +26,27 @@ export const metadata: Metadata = {
     'The open-source AI interactive classroom. Upload a PDF to instantly generate an immersive, multi-agent learning experience.',
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const cookieLocale = cookieStore.get('locale')?.value;
+  const initialLocale: Locale =
+    cookieLocale && supportedLocales.some((l) => l.code === cookieLocale)
+      ? (cookieLocale as Locale)
+      : defaultLocale;
+  const htmlLang = initialLocale.split('-')[0];
+
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
+    <html lang={htmlLang} className={inter.variable} suppressHydrationWarning>
       <body
         className={`${GeistSans.variable} ${GeistMono.variable} antialiased`}
         suppressHydrationWarning
       >
         <ThemeProvider>
-          <I18nProvider>
+          <I18nProvider initialLocale={initialLocale}>
             <ServerProvidersInit />
             <AccessCodeGuard>{children}</AccessCodeGuard>
             <Toaster position="top-center" />

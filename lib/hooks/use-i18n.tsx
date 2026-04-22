@@ -1,21 +1,20 @@
 'use client';
 
-import { createContext, useContext, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type Locale, defaultLocale, supportedLocales } from '@/lib/i18n';
 import '@/lib/i18n/config';
 
 const LOCALE_STORAGE_KEY = 'locale';
+const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 year
 
-/** Match a browser language code (e.g. 'en', 'zh-TW') to a supported locale */
-function resolveLocale(lang: string): Locale {
-  // Exact match
-  const exact = supportedLocales.find((l) => l.code === lang);
-  if (exact) return exact.code;
-  // Prefix match: 'en' → 'en-US', 'zh' → 'zh-CN'
-  const prefix = lang.split('-')[0].toLowerCase();
-  const match = supportedLocales.find((l) => l.code.toLowerCase().startsWith(prefix));
-  return match?.code ?? defaultLocale;
+function isSupported(code: string): code is Locale {
+  return supportedLocales.some((l) => l.code === code);
+}
+
+function writeCookie(locale: Locale) {
+  if (typeof document === 'undefined') return;
+  document.cookie = `${LOCALE_STORAGE_KEY}=${locale}; path=/; max-age=${LOCALE_COOKIE_MAX_AGE}; SameSite=Lax`;
 }
 
 type I18nContextType = {
@@ -26,27 +25,59 @@ type I18nContextType = {
 
 const I18nContext = createContext<I18nContextType | undefined>(undefined);
 
-export function I18nProvider({ children }: { children: ReactNode }) {
-  const { t, i18n } = useTranslation();
+export function I18nProvider({
+  children,
+  initialLocale,
+}: {
+  children: ReactNode;
+  initialLocale?: Locale;
+}) {
+  const { i18n } = useTranslation();
+  const resolvedInitial: Locale =
+    initialLocale && isSupported(initialLocale) ? initialLocale : defaultLocale;
 
-  const locale = (i18n.language || defaultLocale) as Locale;
+  const [locale, setLocaleState] = useState<Locale>(resolvedInitial);
 
-  // Detect language after hydration to avoid SSR mismatch.
-  // i18next handles fallback automatically: if the detected language
-  // has no matching JSON file, it falls back to fallbackLng.
+  // Ensure the i18next singleton's language reflects the current locale so
+  // any code that reads `i18n.language` directly stays in sync. Must run in
+  // an effect — changeLanguage fires internal events that update subscribers,
+  // which would violate React's "no side effects during render" rule.
+  useEffect(() => {
+    if (i18n.language !== locale) {
+      void i18n.changeLanguage(locale);
+    }
+  }, [i18n, locale]);
+
+  // `t` is bound to the current locale via getFixedT so it does NOT depend
+  // on the mutable i18next singleton state. This prevents stale translations
+  // when multiple components subscribe to `t` across render boundaries.
+  const t = useMemo(() => {
+    const fixed = i18n.getFixedT(locale);
+    return ((key: string, options?: Record<string, unknown>) =>
+      fixed(key, options) as unknown as string) as I18nContextType['t'];
+  }, [i18n, locale]);
+
+  // On mount, reconcile localStorage (legacy) with cookie-driven initial
+  // locale. If localStorage has a different supported locale, adopt it and
+  // refresh the cookie so subsequent SSR matches.
   useEffect(() => {
     try {
       const stored = localStorage.getItem(LOCALE_STORAGE_KEY);
-      const raw = stored || navigator.language || defaultLocale;
-      const target = resolveLocale(raw);
-      if (target !== i18n.language) i18n.changeLanguage(target);
+      if (stored && isSupported(stored) && stored !== locale) {
+        setLocaleState(stored);
+        writeCookie(stored);
+      } else if (!stored) {
+        localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+      }
     } catch {
-      // localStorage unavailable, keep default
+      // localStorage unavailable — cookie remains source of truth
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const setLocale = (newLocale: Locale) => {
-    i18n.changeLanguage(newLocale);
+    setLocaleState(newLocale);
+    writeCookie(newLocale);
     try {
       localStorage.setItem(LOCALE_STORAGE_KEY, newLocale);
     } catch {
